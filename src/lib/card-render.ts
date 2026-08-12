@@ -31,8 +31,6 @@ const BOX = {
   qr: { x: 57, y: 1065, w: 104, h: 104 },
 };
 
-/** Corner radius of the master artwork's photo opening. */
-const PHOTO_RADIUS = 45;
 
 
 
@@ -178,7 +176,7 @@ export async function renderFront(
     BOX.photo.y,
     BOX.photo.w,
     BOX.photo.h,
-    PHOTO_RADIUS,
+    45, // corner radius of the master artwork's photo opening
   );
   ctx.clip();
   if (data.photo) {
