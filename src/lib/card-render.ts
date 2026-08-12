@@ -163,15 +163,22 @@ export async function renderFront(
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.imageSmoothingQuality = "high";
 
-  // Photo sits under the artwork frame; clipped to the frame window box so no
-  // pixels can bleed over the decorative border.
+  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
+
+  // Photo is painted into the existing frame opening, clipped to the artwork's
+  // rounded window so it can never spill over the decorative border.
   ctx.save();
   ctx.beginPath();
-  ctx.rect(BOX.photo.x, BOX.photo.y, BOX.photo.w, BOX.photo.h);
+  ctx.roundRect(
+    BOX.photo.x,
+    BOX.photo.y,
+    BOX.photo.w,
+    BOX.photo.h,
+    PHOTO_RADIUS,
+  );
   ctx.clip();
   if (data.photo) {
     const photo = await loadImage(data.photo);
-    // The template PNG has a transparent window, so it masks the photo.
     drawCover(ctx, photo, BOX.photo);
   } else {
     const g = ctx.createLinearGradient(
@@ -195,7 +202,6 @@ export async function renderFront(
   }
   ctx.restore();
 
-  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
 
   drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, 1, 45);
   drawLeft(ctx, data.builderClass.toUpperCase(), BOX.class, 27, INK);
