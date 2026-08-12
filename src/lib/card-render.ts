@@ -165,20 +165,19 @@ export async function renderFront(
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.imageSmoothingQuality = "high";
 
-  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
-
-  // Photo is painted into the existing frame opening, clipped to the artwork's
-  // rounded window so it can never spill over the decorative border.
+  // The user photo is painted FIRST, slightly overflowing the artwork's photo
+  // opening, then the master template is drawn on top. The template's opaque
+  // decorative frame masks the overflow, so the photo fills the opening exactly
+  // and can never cover the gold/navy border.
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(
-    BOX.photo.x,
-    BOX.photo.y,
-    BOX.photo.w,
-    BOX.photo.h,
+    BOX.photo.x - BLEED,
+    BOX.photo.y - BLEED,
+    BOX.photo.w + BLEED * 2,
+    BOX.photo.h + BLEED * 2,
     [45, 45, 24, 24], // corner radii of the master artwork's photo opening
   );
-
   ctx.clip();
   if (data.photo) {
     const photo = await loadImage(data.photo);
@@ -193,10 +192,16 @@ export async function renderFront(
     g.addColorStop(0, "#0b2c4d");
     g.addColorStop(1, "#12405f");
     ctx.fillStyle = g;
-    ctx.fillRect(BOX.photo.x, BOX.photo.y, BOX.photo.w, BOX.photo.h);
-    ctx.fillStyle = "rgba(242,230,206,0.75)";
+    ctx.fillRect(
+      BOX.photo.x - BLEED,
+      BOX.photo.y - BLEED,
+      BOX.photo.w + BLEED * 2,
+      BOX.photo.h + BLEED * 2,
+    );
+    ctx.fillStyle = "rgba(242,230,206,0.8)";
     ctx.font = '600 24px Oswald, "Arial Narrow", sans-serif';
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(
       "UPLOAD PHOTO",
       BOX.photo.x + BOX.photo.w / 2,
@@ -204,6 +209,9 @@ export async function renderFront(
     );
   }
   ctx.restore();
+
+  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
+
 
 
   drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, 1, 45);
