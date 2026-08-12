@@ -174,15 +174,10 @@ export async function renderFront(
   // Photo sits under the artwork frame.
   if (data.photo) {
     const photo = await loadImage(data.photo);
-    ctx.save();
-    archPath(ctx, BOX.photo);
-    ctx.clip();
+    // The template PNG has a transparent window, so it masks the photo.
     drawCover(ctx, photo, BOX.photo);
-    ctx.restore();
   } else {
     ctx.save();
-    archPath(ctx, BOX.photo);
-    ctx.clip();
     const g = ctx.createLinearGradient(
       BOX.photo.x,
       BOX.photo.y,
