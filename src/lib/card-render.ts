@@ -100,20 +100,6 @@ function drawLeft(
   ctx.letterSpacing = "0px";
 }
 
-function archPath(ctx: CanvasRenderingContext2D, b: typeof BOX.photo) {
-  const top = 74;
-  const bottom = 16;
-  ctx.beginPath();
-  ctx.moveTo(b.x, b.y + top);
-  ctx.quadraticCurveTo(b.x, b.y, b.x + top, b.y);
-  ctx.lineTo(b.x + b.w - top, b.y);
-  ctx.quadraticCurveTo(b.x + b.w, b.y, b.x + b.w, b.y + top);
-  ctx.lineTo(b.x + b.w, b.y + b.h - bottom);
-  ctx.quadraticCurveTo(b.x + b.w, b.y + b.h, b.x + b.w - bottom, b.y + b.h);
-  ctx.lineTo(b.x + bottom, b.y + b.h);
-  ctx.quadraticCurveTo(b.x, b.y + b.h, b.x, b.y + b.h - bottom);
-  ctx.closePath();
-}
 
 function drawCover(
   ctx: CanvasRenderingContext2D,
