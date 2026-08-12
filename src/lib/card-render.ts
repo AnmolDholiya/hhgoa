@@ -19,16 +19,18 @@ export type BuilderData = {
   photo: string | null;
 };
 
-/** Locked template coordinates, in front-artwork pixel space (843x1264). */
+/** Locked template coordinates, in front-artwork pixel space (843x1264).
+ *  photo = exact alpha window of the master PNG; name/id = measured artwork plates. */
 const BOX = {
-  photo: { x: 257, y: 455, w: 338, h: 312 },
-  name: { x: 186, y: 769, w: 481, h: 52 },
+  photo: { x: 261, y: 459, w: 331, h: 305 },
+  name: { x: 144, y: 768, w: 560, h: 60 },
   class: { x: 130, y: 867, w: 213, h: 32 },
   stack: { x: 474, y: 867, w: 299, h: 32 },
-  id: { x: 286, y: 918, w: 271, h: 38 },
+  id: { x: 275, y: 914, w: 289, h: 46 },
   barcode: { x: 604, y: 915, w: 148, h: 42 },
   qr: { x: 57, y: 1065, w: 104, h: 104 },
 };
+
 
 const INK = "#241309";
 const PLATE_TEXT = "#F2E6CE";
@@ -73,16 +75,20 @@ function drawCentered(
   box: { x: number; y: number; w: number; h: number },
   startSize: number,
   color: string,
-  spacing = "0px",
+  spacingPx = 0,
+  padding = 0,
 ) {
   if (!text) return;
-  fitText(ctx, text, box.w, startSize, 700, spacing);
+  fitText(ctx, text, box.w - padding * 2, startSize, 700, `${spacingPx}px`);
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, box.x + box.w / 2, box.y + box.h / 2 + 1);
+  // Canvas letterSpacing adds a trailing gap after the last glyph, which pulls
+  // the visual center left; compensate by half a step.
+  ctx.fillText(text, box.x + box.w / 2 + spacingPx / 2, box.y + box.h / 2);
   ctx.letterSpacing = "0px";
 }
+
 
 function drawLeft(
   ctx: CanvasRenderingContext2D,
@@ -157,13 +163,17 @@ export async function renderFront(
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.imageSmoothingQuality = "high";
 
-  // Photo sits under the artwork frame.
+  // Photo sits under the artwork frame; clipped to the frame window box so no
+  // pixels can bleed over the decorative border.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(BOX.photo.x, BOX.photo.y, BOX.photo.w, BOX.photo.h);
+  ctx.clip();
   if (data.photo) {
     const photo = await loadImage(data.photo);
     // The template PNG has a transparent window, so it masks the photo.
     drawCover(ctx, photo, BOX.photo);
   } else {
-    ctx.save();
     const g = ctx.createLinearGradient(
       BOX.photo.x,
       BOX.photo.y,
@@ -182,15 +192,16 @@ export async function renderFront(
       BOX.photo.x + BOX.photo.w / 2,
       BOX.photo.y + BOX.photo.h / 2,
     );
-    ctx.restore();
   }
+  ctx.restore();
 
   ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
 
-  drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, "1px");
+  drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, 1, 45);
   drawLeft(ctx, data.builderClass.toUpperCase(), BOX.class, 27, INK);
   drawLeft(ctx, data.stack.toUpperCase(), BOX.stack, 27, INK);
-  drawCentered(ctx, data.builderId.toUpperCase(), BOX.id, 32, PLATE_TEXT, "2px");
+  drawCentered(ctx, data.builderId.toUpperCase(), BOX.id, 32, PLATE_TEXT, 2, 22);
+
 
   const bc = barcodeCanvas(data.builderId);
   if (bc) {
