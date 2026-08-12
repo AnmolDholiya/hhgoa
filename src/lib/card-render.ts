@@ -176,8 +176,9 @@ export async function renderFront(
     BOX.photo.y,
     BOX.photo.w,
     BOX.photo.h,
-    45, // corner radius of the master artwork's photo opening
+    [45, 45, 24, 24], // corner radii of the master artwork's photo opening
   );
+
   ctx.clip();
   if (data.photo) {
     const photo = await loadImage(data.photo);
