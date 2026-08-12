@@ -163,13 +163,17 @@ export async function renderFront(
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.imageSmoothingQuality = "high";
 
-  // Photo sits under the artwork frame.
+  // Photo sits under the artwork frame; clipped to the frame window box so no
+  // pixels can bleed over the decorative border.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(BOX.photo.x, BOX.photo.y, BOX.photo.w, BOX.photo.h);
+  ctx.clip();
   if (data.photo) {
     const photo = await loadImage(data.photo);
     // The template PNG has a transparent window, so it masks the photo.
     drawCover(ctx, photo, BOX.photo);
   } else {
-    ctx.save();
     const g = ctx.createLinearGradient(
       BOX.photo.x,
       BOX.photo.y,
@@ -188,15 +192,16 @@ export async function renderFront(
       BOX.photo.x + BOX.photo.w / 2,
       BOX.photo.y + BOX.photo.h / 2,
     );
-    ctx.restore();
   }
+  ctx.restore();
 
   ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
 
-  drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, "1px");
+  drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, 1, 45);
   drawLeft(ctx, data.builderClass.toUpperCase(), BOX.class, 27, INK);
   drawLeft(ctx, data.stack.toUpperCase(), BOX.stack, 27, INK);
-  drawCentered(ctx, data.builderId.toUpperCase(), BOX.id, 32, PLATE_TEXT, "2px");
+  drawCentered(ctx, data.builderId.toUpperCase(), BOX.id, 32, PLATE_TEXT, 2, 22);
+
 
   const bc = barcodeCanvas(data.builderId);
   if (bc) {
