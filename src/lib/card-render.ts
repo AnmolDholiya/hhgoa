@@ -22,7 +22,7 @@ export type BuilderData = {
 /** Locked template coordinates, in front-artwork pixel space (843x1264).
  *  photo = exact alpha window of the master PNG; name/id = measured artwork plates. */
 const BOX = {
-  photo: { x: 248, y: 443, w: 345, h: 318 },
+  photo: { x: 254, y: 448, w: 332, h: 309 },
   name: { x: 144, y: 768, w: 560, h: 60 },
   class: { x: 130, y: 867, w: 213, h: 32 },
   stack: { x: 474, y: 867, w: 299, h: 32 },
@@ -33,6 +33,9 @@ const BOX = {
 
 
 
+
+/** Photo overflow hidden by the template's frame drawn on top. */
+const BLEED = 8;
 
 const INK = "#241309";
 const PLATE_TEXT = "#F2E6CE";
