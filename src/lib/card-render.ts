@@ -22,7 +22,7 @@ export type BuilderData = {
 /** Locked template coordinates, in front-artwork pixel space (843x1264).
  *  photo = exact alpha window of the master PNG; name/id = measured artwork plates. */
 const BOX = {
-  photo: { x: 261, y: 459, w: 331, h: 305 },
+  photo: { x: 254, y: 448, w: 332, h: 309 },
   name: { x: 144, y: 768, w: 560, h: 60 },
   class: { x: 130, y: 867, w: 213, h: 32 },
   stack: { x: 474, y: 867, w: 299, h: 32 },
@@ -31,6 +31,11 @@ const BOX = {
   qr: { x: 57, y: 1065, w: 104, h: 104 },
 };
 
+
+
+
+/** Photo overflow hidden by the template's frame drawn on top. */
+const BLEED = 8;
 
 const INK = "#241309";
 const PLATE_TEXT = "#F2E6CE";
@@ -163,15 +168,22 @@ export async function renderFront(
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.imageSmoothingQuality = "high";
 
-  // Photo sits under the artwork frame; clipped to the frame window box so no
-  // pixels can bleed over the decorative border.
+  // The user photo is painted FIRST, slightly overflowing the artwork's photo
+  // opening, then the master template is drawn on top. The template's opaque
+  // decorative frame masks the overflow, so the photo fills the opening exactly
+  // and can never cover the gold/navy border.
   ctx.save();
   ctx.beginPath();
-  ctx.rect(BOX.photo.x, BOX.photo.y, BOX.photo.w, BOX.photo.h);
+  ctx.roundRect(
+    BOX.photo.x - BLEED,
+    BOX.photo.y - BLEED,
+    BOX.photo.w + BLEED * 2,
+    BOX.photo.h + BLEED * 2,
+    [45, 45, 24, 24], // corner radii of the master artwork's photo opening
+  );
   ctx.clip();
   if (data.photo) {
     const photo = await loadImage(data.photo);
-    // The template PNG has a transparent window, so it masks the photo.
     drawCover(ctx, photo, BOX.photo);
   } else {
     const g = ctx.createLinearGradient(
@@ -183,10 +195,16 @@ export async function renderFront(
     g.addColorStop(0, "#0b2c4d");
     g.addColorStop(1, "#12405f");
     ctx.fillStyle = g;
-    ctx.fillRect(BOX.photo.x, BOX.photo.y, BOX.photo.w, BOX.photo.h);
-    ctx.fillStyle = "rgba(242,230,206,0.75)";
+    ctx.fillRect(
+      BOX.photo.x - BLEED,
+      BOX.photo.y - BLEED,
+      BOX.photo.w + BLEED * 2,
+      BOX.photo.h + BLEED * 2,
+    );
+    ctx.fillStyle = "rgba(242,230,206,0.8)";
     ctx.font = '600 24px Oswald, "Arial Narrow", sans-serif';
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(
       "UPLOAD PHOTO",
       BOX.photo.x + BOX.photo.w / 2,
@@ -196,6 +214,8 @@ export async function renderFront(
   ctx.restore();
 
   ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
+
+
 
   drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, 1, 45);
   drawLeft(ctx, data.builderClass.toUpperCase(), BOX.class, 27, INK);
