@@ -22,7 +22,7 @@ export type BuilderData = {
 /** Locked template coordinates, in front-artwork pixel space (843x1264).
  *  photo = exact alpha window of the master PNG; name/id = measured artwork plates. */
 const BOX = {
-  photo: { x: 261, y: 459, w: 331, h: 305 },
+  photo: { x: 247, y: 432, w: 350, h: 328 },
   name: { x: 144, y: 768, w: 560, h: 60 },
   class: { x: 130, y: 867, w: 213, h: 32 },
   stack: { x: 474, y: 867, w: 299, h: 32 },
