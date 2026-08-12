@@ -31,6 +31,10 @@ const BOX = {
   qr: { x: 57, y: 1065, w: 104, h: 104 },
 };
 
+/** Corner radius of the master artwork's photo opening. */
+const PHOTO_RADIUS = 45;
+
+
 
 const INK = "#241309";
 const PLATE_TEXT = "#F2E6CE";
