@@ -75,16 +75,20 @@ function drawCentered(
   box: { x: number; y: number; w: number; h: number },
   startSize: number,
   color: string,
-  spacing = "0px",
+  spacingPx = 0,
+  padding = 0,
 ) {
   if (!text) return;
-  fitText(ctx, text, box.w, startSize, 700, spacing);
+  fitText(ctx, text, box.w - padding * 2, startSize, 700, `${spacingPx}px`);
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, box.x + box.w / 2, box.y + box.h / 2 + 1);
+  // Canvas letterSpacing adds a trailing gap after the last glyph, which pulls
+  // the visual center left; compensate by half a step.
+  ctx.fillText(text, box.x + box.w / 2 + spacingPx / 2, box.y + box.h / 2);
   ctx.letterSpacing = "0px";
 }
+
 
 function drawLeft(
   ctx: CanvasRenderingContext2D,
