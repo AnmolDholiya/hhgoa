@@ -307,17 +307,11 @@ export function Index() {
       await renderFront(frontCanvas, data, 3);
       const frontBlob = await canvasToBlob(frontCanvas);
       const frontUrl = URL.createObjectURL(frontBlob);
-      const frontFile = new File([frontBlob], fileName(data.fullName, "FRONT"), {
-        type: "image/png",
-      });
 
       const backCanvas = document.createElement("canvas");
       await renderBack(backCanvas, 3);
       const backBlob = await canvasToBlob(backCanvas);
       const backUrl = URL.createObjectURL(backBlob);
-      const backFile = new File([backBlob], fileName(data.fullName, "BACK"), {
-        type: "image/png",
-      });
 
       const combinedCanvas = document.createElement("canvas");
       await renderCombined(combinedCanvas, data, 2);
@@ -329,27 +323,6 @@ export function Index() {
         back: backUrl,
         combined: combinedUrl,
       });
-
-      if (typeof navigator !== "undefined" && navigator.canShare) {
-        const shareData = {
-          title: "HH GOA 2026 Builder ID",
-          text: `${shareText}\nhttps://hhgoa-inky.vercel.app/`,
-          files: [frontFile, backFile],
-        };
-
-        if (navigator.canShare(shareData)) {
-          try {
-            await navigator.share(shareData);
-            setBusy(false);
-            return;
-          } catch (e) {
-            if ((e as Error).name === "AbortError") {
-              setBusy(false);
-              return;
-            }
-          }
-        }
-      }
 
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
@@ -369,9 +342,12 @@ export function Index() {
         triggerDownload(backUrl, fileName(data.fullName, "BACK"));
       }, 400);
 
+      // Directly open X intent
+      openXIntent();
+
       setShareModalOpen(true);
     } catch (err) {
-      console.error("Share failed:", err);
+      console.error("Share to X failed:", err);
     } finally {
       setBusy(false);
     }
