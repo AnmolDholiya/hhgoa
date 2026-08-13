@@ -152,8 +152,8 @@ export function Index() {
 
   const shareText = useMemo(
     () =>
-      `${data.fullName || "Builder"}, checked in for #HHGoa26. 🎯 ✈️\n\n${data.builderClass || "BUILDER"} building with ${data.stack || "React"}.\n\nLive: https://hhgoa-inky.vercel.app/\nGitHub: https://github.com/AnmolDholiya/hhgoa\n\n#FrameInGoa`,
-    [data.fullName, data.builderClass, data.stack],
+      `🚀 Built my own HH Goa 2026 Builder ID Generator.\n\nOne photo.\nYour builder class.\nYour tech stack.\nOne personalized Builder ID.\n\nMade for builders heading to Goa. 🏝️\n\nLive: https://hhgoa-inky.vercel.app/\nGitHub: https://github.com/AnmolDholiya/hhgoa\n\nBuilt with React + TypeScript + Canvas.\n\n#HHGoa26 #FrameInGoa`,
+    [],
   );
 
   const handlePhotoUpload = (file?: File | null) => {
