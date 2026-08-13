@@ -152,7 +152,7 @@ export function Index() {
 
   const shareText = useMemo(
     () =>
-      `🚀 Built my own HH Goa 2026 Builder ID Generator.\n\nOne photo.\nYour builder class.\nYour tech stack.\nOne personalized Builder ID.\n\nMade for builders heading to Goa. 🏝️\n\nLive: https://hhgoa-inky.vercel.app/\nGitHub: https://github.com/AnmolDholiya/hhgoa\n\nBuilt with React + TypeScript + Canvas.\n\n#HHGoa26 #FrameInGoa`,
+      `🚀 Built my own HH Goa 2026 Builder ID Generator.\n\nOne photo.\nYour builder class.\nYour tech stack.\nOne personalized Builder ID.\n\nMade for builders heading to Goa. 🏝️\n\nLive: https://hhgoa-inky.vercel.app/\nGitHub: https://github.com/AnmolDholiya/hhgoa`,
     [],
   );
 
@@ -330,29 +330,7 @@ export function Index() {
         combined: combinedUrl,
       });
 
-      // Automatically attach both Front & Back ID card PNGs via Web Share API
-      if (typeof navigator !== "undefined" && navigator.canShare) {
-        const shareData = {
-          title: "HH GOA 2026 Builder ID",
-          text: shareText,
-          files: [frontFile, backFile],
-        };
-
-        if (navigator.canShare(shareData)) {
-          try {
-            await navigator.share(shareData);
-            setBusy(false);
-            return;
-          } catch (e) {
-            if ((e as Error).name === "AbortError") {
-              setBusy(false);
-              return;
-            }
-          }
-        }
-      }
-
-      // Fallback for Desktop browsers: copy image to clipboard and trigger downloads
+      // Copy combined pass image to clipboard if supported
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
         try {
