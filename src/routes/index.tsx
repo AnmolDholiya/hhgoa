@@ -63,7 +63,7 @@ function Index() {
     stack: "REACT • NODE.JS • AI",
     builderId: "#HH-GOA-2026-0001",
     websiteUrl: "https://hhgoa.com",
-    photo: null,
+    photo: "/sample-builder.png",
   });
   const [side, setSide] = useState<"front" | "back">("front");
   const [busy, setBusy] = useState(false);
@@ -81,7 +81,15 @@ function Index() {
   const onPhoto = (file?: File | null) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => set("photo", String(reader.result));
+    reader.onload = () => {
+      setData((d) => ({
+        ...d,
+        photo: String(reader.result),
+        photoZoom: 1.0,
+        photoOffsetX: 0,
+        photoOffsetY: 0,
+      }));
+    };
     reader.readAsDataURL(file);
   };
 
@@ -142,7 +150,7 @@ function Index() {
             <div className="hh-rule mt-4 mb-6" />
             <div className="grid gap-5">
               <Field label="Photo" hint="jpg / png">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
                     onClick={() => fileInput.current?.click()}
@@ -150,6 +158,13 @@ function Index() {
                   >
                     <Upload className="size-4" aria-hidden />
                     UPLOAD
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => set("photo", "/sample-builder.png")}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/30 px-3 py-2 font-mono text-xs tracking-widest text-parchment transition-colors hover:bg-secondary"
+                  >
+                    SAMPLE
                   </button>
                   {data.photo ? (
                     <button
@@ -172,6 +187,144 @@ function Index() {
                     onChange={(e) => onPhoto(e.target.files?.[0])}
                   />
                 </div>
+
+                {data.photo ? (
+                  <div className="mt-3 rounded-md border border-border/60 bg-secondary/20 p-3 font-mono text-xs">
+                    <div className="flex items-center justify-between text-muted-foreground mb-2">
+                      <span className="text-[10px] tracking-wider uppercase font-semibold text-parchment/80">
+                        Adjust Photo
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setData((d) => ({
+                            ...d,
+                            photoZoom: 1.0,
+                            photoOffsetX: 0,
+                            photoOffsetY: 0,
+                          }))
+                        }
+                        className="text-[10px] text-primary hover:underline uppercase"
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    {/* Zoom Control */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-[10px] text-muted-foreground w-14">ZOOM</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          set(
+                            "photoZoom",
+                            Math.max(1.0, Number(((data.photoZoom ?? 1.0) - 0.05).toFixed(2))),
+                          )
+                        }
+                        className="size-6 rounded border border-border bg-secondary flex items-center justify-center text-parchment hover:bg-secondary/80 text-xs font-bold select-none"
+                        title="Zoom Out"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="range"
+                        min={1.0}
+                        max={2.0}
+                        step={0.02}
+                        value={data.photoZoom ?? 1.0}
+                        onChange={(e) => set("photoZoom", parseFloat(e.target.value))}
+                        className="h-1.5 flex-1 accent-primary cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          set(
+                            "photoZoom",
+                            Math.min(2.0, Number(((data.photoZoom ?? 1.0) + 0.05).toFixed(2))),
+                          )
+                        }
+                        className="size-6 rounded border border-border bg-secondary flex items-center justify-center text-parchment hover:bg-secondary/80 text-xs font-bold select-none"
+                        title="Zoom In"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* D-Pad Position Controls */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground w-14">POSITION</span>
+                      <div className="grid grid-cols-3 gap-1 w-28">
+                        <div />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            set(
+                              "photoOffsetY",
+                              Math.max(-1, Number(((data.photoOffsetY ?? 0) - 0.1).toFixed(2))),
+                            )
+                          }
+                          className="h-6 rounded border border-border bg-secondary flex items-center justify-center text-parchment hover:bg-secondary/80 text-[10px]"
+                          title="Move Up"
+                        >
+                          ↑
+                        </button>
+                        <div />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            set(
+                              "photoOffsetX",
+                              Math.max(-1, Number(((data.photoOffsetX ?? 0) - 0.1).toFixed(2))),
+                            )
+                          }
+                          className="h-6 rounded border border-border bg-secondary flex items-center justify-center text-parchment hover:bg-secondary/80 text-[10px]"
+                          title="Move Left"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            set("photoOffsetX", 0);
+                            set("photoOffsetY", 0);
+                          }}
+                          className="h-6 rounded border border-border bg-secondary flex items-center justify-center text-primary text-[8px] font-bold"
+                          title="Center Position"
+                        >
+                          CENTER
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            set(
+                              "photoOffsetX",
+                              Math.min(1, Number(((data.photoOffsetX ?? 0) + 0.1).toFixed(2))),
+                            )
+                          }
+                          className="h-6 rounded border border-border bg-secondary flex items-center justify-center text-parchment hover:bg-secondary/80 text-[10px]"
+                          title="Move Right"
+                        >
+                          →
+                        </button>
+                        <div />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            set(
+                              "photoOffsetY",
+                              Math.min(1, Number(((data.photoOffsetY ?? 0) + 0.1).toFixed(2))),
+                            )
+                          }
+                          className="h-6 rounded border border-border bg-secondary flex items-center justify-center text-parchment hover:bg-secondary/80 text-[10px]"
+                          title="Move Down"
+                        >
+                          ↓
+                        </button>
+                        <div />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </Field>
 
               <Field label="Full Name">

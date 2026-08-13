@@ -14,25 +14,30 @@ type Props = {
 
 export function CardCanvas({ side, data, className }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const renderIdRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const currentId = ++renderIdRef.current;
+
     const draw = async () => {
       const canvas = ref.current;
       if (!canvas) return;
+
+      // Wait for fonts to be ready before first paint
       try {
         await document.fonts.ready;
       } catch {
         /* fonts API unavailable */
       }
-      if (cancelled) return;
+
+      // If a newer render was triggered while we waited for fonts, bail out
+      if (currentId !== renderIdRef.current) return;
+
       if (side === "front") await renderFront(canvas, data, 1.5);
       else await renderBack(canvas, 1.5);
     };
+
     void draw();
-    return () => {
-      cancelled = true;
-    };
   }, [side, data]);
 
   return (
