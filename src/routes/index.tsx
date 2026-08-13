@@ -948,15 +948,7 @@ export function Index() {
                   </ul>
                 </div>
 
-                {/* GENERATE BUTTON */}
-                <button
-                  type="button"
-                  onClick={() => setView("builder")}
-                  disabled={!isValidToGenerate}
-                  className="hh-button-primary w-full py-4 text-sm"
-                >
-                  GENERATE MY BUILDER ID →
-                </button>
+
               </div>
 
               {/* RIGHT COLUMN: LIVE CARD PREVIEW PANEL (5 COLS) */}
