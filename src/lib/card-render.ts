@@ -557,12 +557,17 @@ export async function renderCombined(canvas: HTMLCanvasElement, data: BuilderDat
 
 /* ── file name helper ────────────────────────────────────────────────── */
 
-export function fileName(name: string, suffix = "") {
+export function fileName(name: string, suffix = "", builderId = "") {
+  const cleanId = (builderId || "")
+    .replace(/^#/, "")
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const idPrefix = cleanId ? `${cleanId}-` : "";
   const slug =
     (name || "BUILDER")
       .toUpperCase()
       .replace(/[^A-Z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "BUILDER";
-  const part = suffix ? `_${suffix.toUpperCase()}` : "";
-  return `HH-GOA-2026_${slug}${part}.png`;
+  const part = suffix ? `-${suffix.toUpperCase()}` : "";
+  return `${idPrefix}${slug}${part}.png`;
 }

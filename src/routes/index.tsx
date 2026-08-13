@@ -150,10 +150,29 @@ export function Index() {
   const set = <K extends keyof BuilderData>(key: K, value: BuilderData[K]) =>
     setData((d) => ({ ...d, [key]: value }));
 
+  const [shareState, setShareState] = useState<
+    "idle" | "preparing" | "shared" | "opened_x" | "error"
+  >("idle");
+
+  const shareButtonLabel = useMemo(() => {
+    switch (shareState) {
+      case "preparing":
+        return "PREPARING SHARE...";
+      case "shared":
+        return "SHARED ✓";
+      case "opened_x":
+        return "OPENED X ↗";
+      case "error":
+        return "SHARE FAILED — TRY AGAIN";
+      default:
+        return "SHARE ON X ↗";
+    }
+  }, [shareState]);
+
   const shareText = useMemo(
     () =>
-      `🚀 Built my own HH Goa 2026 Builder ID Generator.\n\nOne photo.\nYour builder class.\nYour tech stack.\nOne personalized Builder ID.\n\nMade for builders heading to Goa. 🏝️\n\nLive: https://hhgoa-inky.vercel.app/\nGitHub: https://github.com/AnmolDholiya/hhgoa`,
-    [],
+      `🚀 Built my own HH Goa 2026 Builder ID Generator.\n\nOne photo.\nYour builder class.\nYour tech stack.\nOne personalized Builder ID: ${data.builderId || "#HH-GOA-2026-001"}\n\nMade for builders heading to Goa. 🏝️\n\nLive: https://hhgoa-inky.vercel.app/\nGitHub: https://github.com/AnmolDholiya/hhgoa\n\n#HHGoa26 #FrameInGoa`,
+    [data.builderId],
   );
 
   const handlePhotoUpload = (file?: File | null) => {
@@ -248,7 +267,7 @@ export function Index() {
       await renderFront(canvas, data, 3);
       const blob = await canvasToBlob(canvas);
       const url = URL.createObjectURL(blob);
-      triggerDownload(url, fileName(data.fullName, "FRONT"));
+      triggerDownload(url, fileName(data.fullName, "FRONT", data.builderId));
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } finally {
       setBusy(false);
@@ -263,7 +282,7 @@ export function Index() {
       await renderBack(canvas, 3);
       const blob = await canvasToBlob(canvas);
       const url = URL.createObjectURL(blob);
-      triggerDownload(url, fileName(data.fullName, "BACK"));
+      triggerDownload(url, fileName(data.fullName, "BACK", data.builderId));
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } finally {
       setBusy(false);
@@ -278,7 +297,7 @@ export function Index() {
       await renderCombined(canvas, data, 2);
       const blob = await canvasToBlob(canvas);
       const url = URL.createObjectURL(blob);
-      triggerDownload(url, fileName(data.fullName, "PASS"));
+      triggerDownload(url, fileName(data.fullName, "PASS", data.builderId));
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } finally {
       setBusy(false);
@@ -301,13 +320,17 @@ export function Index() {
   };
 
   const share = async () => {
+    if (busy || shareState === "preparing") return;
     setBusy(true);
+    setShareState("preparing");
+
     try {
       const frontCanvas = document.createElement("canvas");
       await renderFront(frontCanvas, data, 3);
       const frontBlob = await canvasToBlob(frontCanvas);
       const frontUrl = URL.createObjectURL(frontBlob);
-      const frontFile = new File([frontBlob], fileName(data.fullName, "FRONT"), {
+      const frontFileName = fileName(data.fullName, "FRONT", data.builderId);
+      const frontFile = new File([frontBlob], frontFileName, {
         type: "image/png",
       });
 
@@ -315,7 +338,8 @@ export function Index() {
       await renderBack(backCanvas, 3);
       const backBlob = await canvasToBlob(backCanvas);
       const backUrl = URL.createObjectURL(backBlob);
-      const backFile = new File([backBlob], fileName(data.fullName, "BACK"), {
+      const backFileName = fileName(data.fullName, "BACK", data.builderId);
+      const backFile = new File([backBlob], backFileName, {
         type: "image/png",
       });
 
@@ -330,7 +354,29 @@ export function Index() {
         combined: combinedUrl,
       });
 
-      // Copy combined pass image to clipboard if supported
+      // SECTION 5 & 8: Mobile native share check with files
+      if (typeof navigator !== "undefined" && navigator.canShare) {
+        const shareData = {
+          text: shareText,
+          files: [frontFile, backFile],
+        };
+
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            setShareState("shared");
+            setTimeout(() => setShareState("idle"), 4000);
+            return;
+          } catch (e) {
+            if ((e as Error).name === "AbortError") {
+              setShareState("idle");
+              return;
+            }
+          }
+        }
+      }
+
+      // SECTION 6 & 9: Desktop fallback
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
         try {
@@ -344,19 +390,20 @@ export function Index() {
       }
       setCopiedImage(copied);
 
-      // Download both Front and Back card PNGs
-      triggerDownload(frontUrl, fileName(data.fullName, "FRONT"));
+      triggerDownload(frontUrl, frontFileName);
       setTimeout(() => {
-        triggerDownload(backUrl, fileName(data.fullName, "BACK"));
+        triggerDownload(backUrl, backFileName);
       }, 400);
 
-      // Open X post intent
       openXIntent();
 
-      // Open share modal
+      setShareState("opened_x");
       setShareModalOpen(true);
+      setTimeout(() => setShareState("idle"), 5000);
     } catch (err) {
       console.error("Share to X failed:", err);
+      setShareState("error");
+      setTimeout(() => setShareState("idle"), 4000);
     } finally {
       setBusy(false);
     }
@@ -1036,11 +1083,11 @@ export function Index() {
                     <button
                       type="button"
                       onClick={share}
-                      disabled={busy}
-                      className="py-2.5 px-3 border border-[#242832] bg-[#0D0E12] text-[#F4F1EA] hover:border-[#FF4500] hover:text-[#FF4500] text-xs font-semibold tracking-wider uppercase rounded-[2px] transition-colors flex items-center justify-center gap-1.5"
+                      disabled={busy || shareState === "preparing"}
+                      className="py-2.5 px-3 border border-[#FF4500]/60 bg-[#FF4500]/10 text-[#FF4500] hover:bg-[#FF4500] hover:text-black text-xs font-bold tracking-wider uppercase rounded-[2px] transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Share2 className="w-3.5 h-3.5" />
-                      <span>SHARE ↗</span>
+                      <span>{shareButtonLabel}</span>
                     </button>
 
                     <button
@@ -1087,9 +1134,7 @@ export function Index() {
               <div>
                 <p className="font-semibold text-[#00E599]">Front & Back Card PNGs Ready!</p>
                 <p className="mt-0.5 text-[#9AA3B2]">
-                  {copiedImage
-                    ? "Combined pass image has been copied to your clipboard (Ctrl+V) and downloaded automatically."
-                    : "Front and Back side card images have been downloaded automatically to your browser."}
+                  Your two card images were prepared. Attach FRONT + BACK to your X post.
                 </p>
               </div>
             </div>
