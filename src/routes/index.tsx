@@ -62,7 +62,7 @@ function Index() {
     builderClass: "FULL STACK BUILDER",
     stack: "REACT • NODE.JS • AI",
     builderId: "#HH-GOA-2026-0001",
-    websiteUrl: "https://hhgoa.com",
+    websiteUrl: "https://hhgoa-inky.vercel.app/",
     photo: "/sample-builder.png",
   });
   const [side, setSide] = useState<"front" | "back">("front");
@@ -111,7 +111,7 @@ function Index() {
   const share = () => {
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
       shareText,
-    )}&url=${encodeURIComponent(data.websiteUrl || "https://hhgoa.com")}`;
+    )}&url=${encodeURIComponent(data.websiteUrl || "https://hhgoa-inky.vercel.app/")}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -369,11 +369,12 @@ function Index() {
                 />
               </Field>
 
-              <Field label="Website URL" hint="becomes the QR">
+              <Field label="Website URL" hint="fixed QR link">
                 <input
-                  className="hh-field focus:hh-field-focus"
-                  value={data.websiteUrl}
-                  onChange={(e) => set("websiteUrl", e.target.value)}
+                  className="hh-field cursor-not-allowed opacity-80 select-none bg-secondary/20"
+                  value="https://hhgoa-inky.vercel.app/"
+                  readOnly
+                  disabled
                 />
               </Field>
             </div>

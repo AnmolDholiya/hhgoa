@@ -219,7 +219,7 @@ export function calculateSmartPhotoPlacement(
 /* ── barcode / QR helpers ────────────────────────────────────────────── */
 
 async function qrDataUrl(text: string) {
-  return QRCode.toDataURL(text || "https://hhgoa.com", {
+  return QRCode.toDataURL(text || "https://hhgoa-inky.vercel.app/", {
     margin: 0,
     errorCorrectionLevel: "M",
     width: 512,
