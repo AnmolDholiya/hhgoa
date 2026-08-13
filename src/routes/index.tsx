@@ -307,11 +307,17 @@ export function Index() {
       await renderFront(frontCanvas, data, 3);
       const frontBlob = await canvasToBlob(frontCanvas);
       const frontUrl = URL.createObjectURL(frontBlob);
+      const frontFile = new File([frontBlob], fileName(data.fullName, "FRONT"), {
+        type: "image/png",
+      });
 
       const backCanvas = document.createElement("canvas");
       await renderBack(backCanvas, 3);
       const backBlob = await canvasToBlob(backCanvas);
       const backUrl = URL.createObjectURL(backBlob);
+      const backFile = new File([backBlob], fileName(data.fullName, "BACK"), {
+        type: "image/png",
+      });
 
       const combinedCanvas = document.createElement("canvas");
       await renderCombined(combinedCanvas, data, 2);
@@ -324,6 +330,29 @@ export function Index() {
         combined: combinedUrl,
       });
 
+      // If mobile browser supports Web Share with image files, share directly with attached Front & Back PNGs!
+      if (typeof navigator !== "undefined" && navigator.canShare) {
+        const shareData = {
+          title: "HH GOA 2026 Builder ID",
+          text: shareText,
+          files: [frontFile, backFile],
+        };
+
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            setBusy(false);
+            return;
+          } catch (e) {
+            if ((e as Error).name === "AbortError") {
+              setBusy(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // Desktop / Web Intent fallback: Copy image, download both PNGs, open X intent & share modal
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
         try {
@@ -337,14 +366,16 @@ export function Index() {
       }
       setCopiedImage(copied);
 
+      // Download both Front and Back card PNGs
       triggerDownload(frontUrl, fileName(data.fullName, "FRONT"));
       setTimeout(() => {
         triggerDownload(backUrl, fileName(data.fullName, "BACK"));
       }, 400);
 
-      // Directly open X intent
+      // Open X post intent
       openXIntent();
 
+      // Open share modal
       setShareModalOpen(true);
     } catch (err) {
       console.error("Share to X failed:", err);
