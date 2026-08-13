@@ -330,7 +330,29 @@ export function Index() {
         combined: combinedUrl,
       });
 
-      // Copy combined image to clipboard if supported
+      // Automatically attach both Front & Back ID card PNGs via Web Share API
+      if (typeof navigator !== "undefined" && navigator.canShare) {
+        const shareData = {
+          title: "HH GOA 2026 Builder ID",
+          text: shareText,
+          files: [frontFile, backFile],
+        };
+
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            setBusy(false);
+            return;
+          } catch (e) {
+            if ((e as Error).name === "AbortError") {
+              setBusy(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // Fallback for Desktop browsers: copy image to clipboard and trigger downloads
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
         try {
