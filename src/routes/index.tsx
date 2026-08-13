@@ -152,7 +152,7 @@ export function Index() {
 
   const shareText = useMemo(
     () =>
-      `I just minted my official HH GOA 2026 Builder ID — ${data.builderClass} building with ${data.stack}. #FrameInGoa`,
+      `⚡ Just minted my official Hacker House Goa 2026 Builder ID!\n\n🚀 ${data.builderClass}\n🛠️ Stack: ${data.stack}\n\nFramed for Goa. See you at HH Goa 2026! 🌴🔥\n\n#FrameInGoa #HHGoa2026`,
     [data.builderClass, data.stack],
   );
 
@@ -333,7 +333,7 @@ export function Index() {
       if (typeof navigator !== "undefined" && navigator.canShare) {
         const shareData = {
           title: "HH GOA 2026 Builder ID",
-          text: `${shareText}\n${data.websiteUrl}`,
+          text: `${shareText}\nhttps://hhgoa-inky.vercel.app/`,
           files: [frontFile, backFile],
         };
 
@@ -403,9 +403,10 @@ export function Index() {
   };
 
   const openXIntent = () => {
+    const shareUrl = "https://hhgoa-inky.vercel.app/";
     const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-      shareText,
-    )}&url=${encodeURIComponent(data.websiteUrl || "https://hhgoa.com/")}`;
+      `${shareText}\n${shareUrl}`,
+    )}`;
     window.open(tweetUrl, "_blank", "noopener,noreferrer");
   };
 
