@@ -23,29 +23,30 @@ export type BuilderData = {
 };
 
 /**
- * Photo opening bounding box derived from pixel-level analysis of card-front.png.
+ * Photo frame derived from the available central artwork area.
  *
- * The actual transparent hole is an arch-topped shape:
+ * It intentionally covers the prior arched photo artwork:
  *  - Top arch: y=448→521, narrowing from 338px to 257px with a dome curve
  *  - Straight body: y=521→739, full width x=254→591 (338px)
  *  - Bottom corners: y=740→763, gentle rounding (~20px radius)
  *
- * For cover-crop calculations we use the full bounding box.
- * For visual masking we rely on the template's own alpha channel.
+ * The same card-space geometry drives preview and PNG rendering.
  */
-export const photoFrame = {
-  x: 254,
-  y: 448,
-  width: 338,
-  height: 316,
+export const PHOTO_FRAME = {
+  x: 234,
+  y: 437,
+  width: 374,
+  height: 329,
+  radius: 10,
 };
+const photoFrame = PHOTO_FRAME;
 
 /** Toggle for visual frame geometry inspection during development */
 export const DEBUG_PHOTO_FRAME = false;
 
 /** Locked template coordinates, in front-artwork pixel space (843×1264). */
 const BOX = {
-  photo: photoFrame,
+  photo: PHOTO_FRAME,
   name: { x: 144, y: 768, w: 560, h: 60 },
   class: { x: 130, y: 867, w: 213, h: 32 },
   stack: { x: 474, y: 867, w: 299, h: 32 },
@@ -59,10 +60,9 @@ const BOX = {
  * directions.  This ensures photo coverage even if the arch curve extends
  * slightly past the measured bounding box at sub-pixel level.
  */
-const BLEED = 10;
-
 const INK = "#241309";
 const PLATE_TEXT = "#F2E6CE";
+const BLEED = 0;
 
 /* ── image cache ─────────────────────────────────────────────────────── */
 
@@ -176,10 +176,7 @@ export function calculateSmartPhotoPlacement(
   const imageAspect = imageWidth / imageHeight;
   const frameAspect = frameWidth / frameHeight;
 
-  const coverScale = Math.max(
-    frameWidth / imageWidth,
-    frameHeight / imageHeight,
-  );
+  const coverScale = Math.max(frameWidth / imageWidth, frameHeight / imageHeight);
   const safeZoom = Math.max(1.0, zoom);
 
   const cropWidth = frameWidth / (coverScale * safeZoom);
@@ -271,11 +268,7 @@ function barcodeCanvas(value: string) {
  * No roundRect, no SVG clipPath, no CSS clip-path.
  * Preview and downloaded PNG use the exact same render function.
  */
-export async function renderFront(
-  canvas: HTMLCanvasElement,
-  data: BuilderData,
-  scale = 1,
-) {
+export async function renderFront(canvas: HTMLCanvasElement, data: BuilderData, scale = 1) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -304,11 +297,10 @@ export async function renderFront(
   // Draw the photo into the bounding box + bleed.  It extends past the
   // arch opening edges, but that's OK — the template overlay in step 3
   // will mask everything outside the actual transparent hole.
-  const fx = photoFrame.x - BLEED;
-  const fy = photoFrame.y - BLEED;
-  const fw = photoFrame.width + BLEED * 2;
-  const fh = photoFrame.height + BLEED * 2;
-
+  const fx = PHOTO_FRAME.x;
+  const fy = PHOTO_FRAME.y;
+  const fw = PHOTO_FRAME.width;
+  const fh = PHOTO_FRAME.height;
   if (data.photo) {
     try {
       const photo = await loadImage(data.photo);
@@ -349,18 +341,14 @@ export async function renderFront(
   //   • Template artwork perfectly covers photo bleed outside the hole
   //   • The arch shape, border, scenery all remain pristine
   ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
+  await drawCleanPhotoFrame(ctx, data);
 
   // ─── DEBUG OVERLAY ─────────────────────────────────────────────────
   if (DEBUG_PHOTO_FRAME) {
     ctx.save();
     ctx.strokeStyle = "#FF0000";
     ctx.lineWidth = 2;
-    ctx.strokeRect(
-      photoFrame.x,
-      photoFrame.y,
-      photoFrame.width,
-      photoFrame.height,
-    );
+    ctx.strokeRect(photoFrame.x, photoFrame.y, photoFrame.width, photoFrame.height);
     ctx.font = "bold 14px monospace";
     ctx.fillStyle = "#FF0000";
     ctx.fillText(
@@ -372,26 +360,10 @@ export async function renderFront(
   }
 
   // ─── STEP 4: DYNAMIC TEXT, BARCODE & QR ───────────────────────────
-  drawCentered(
-    ctx,
-    data.fullName.toUpperCase(),
-    BOX.name,
-    46,
-    PLATE_TEXT,
-    1,
-    45,
-  );
+  drawCentered(ctx, data.fullName.toUpperCase(), BOX.name, 46, PLATE_TEXT, 1, 45);
   drawLeft(ctx, data.builderClass.toUpperCase(), BOX.class, 27, INK);
   drawLeft(ctx, data.stack.toUpperCase(), BOX.stack, 27, INK);
-  drawCentered(
-    ctx,
-    data.builderId.toUpperCase(),
-    BOX.id,
-    32,
-    PLATE_TEXT,
-    2,
-    22,
-  );
+  drawCentered(ctx, data.builderId.toUpperCase(), BOX.id, 32, PLATE_TEXT, 2, 22);
 
   const bc = barcodeCanvas(data.builderId);
   if (bc) {
@@ -400,7 +372,75 @@ export async function renderFront(
   ctx.drawImage(qrImg, BOX.qr.x, BOX.qr.y, BOX.qr.w, BOX.qr.h);
 }
 
-/** Professional placeholder gradient for the photo area */
+async function drawCleanPhotoFrame(ctx: CanvasRenderingContext2D, data: BuilderData) {
+  const { x, y, width, height, radius } = PHOTO_FRAME;
+
+  // This opaque base completely conceals the legacy arched photo treatment.
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, radius);
+  ctx.fillStyle = "#f2e6ce";
+  ctx.fill();
+  ctx.clip();
+
+  if (data.photo) {
+    try {
+      const photo = await loadImage(data.photo);
+      const placement = calculateSmartPhotoPlacement(
+        photo.width,
+        photo.height,
+        x,
+        y,
+        width,
+        height,
+        data.photoZoom ?? 1,
+        data.photoOffsetX ?? 0,
+        data.photoOffsetY ?? 0,
+      );
+      ctx.drawImage(
+        photo,
+        placement.sx,
+        placement.sy,
+        placement.cropWidth,
+        placement.cropHeight,
+        placement.frameX,
+        placement.frameY,
+        placement.frameWidth,
+        placement.frameHeight,
+      );
+    } catch {
+      drawPhotoPlaceholder(ctx, "PHOTO ERROR");
+    }
+  } else {
+    drawPhotoPlaceholder(ctx, "UPLOAD PHOTO");
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, radius);
+  ctx.strokeStyle = "#241309";
+  ctx.lineWidth = 10;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Neutral default state for the single clean photo frame. */
+function drawPhotoPlaceholder(ctx: CanvasRenderingContext2D, label: string) {
+  const { x, y, width, height } = PHOTO_FRAME;
+  const g = ctx.createLinearGradient(x, y, x + width, y + height);
+  g.addColorStop(0, "#e9d7ad");
+  g.addColorStop(1, "#d4b878");
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = "#241309";
+  ctx.font = '600 24px Oswald, "Arial Narrow", sans-serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + width / 2, y + height / 2);
+}
+
+/** Placeholder for the template's initial, fully covered paint pass. */
 function drawPlaceholder(ctx: CanvasRenderingContext2D, label: string) {
   const g = ctx.createLinearGradient(
     photoFrame.x,
@@ -421,11 +461,7 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, label: string) {
   ctx.font = '600 24px Oswald, "Arial Narrow", sans-serif';
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(
-    label,
-    photoFrame.x + photoFrame.width / 2,
-    photoFrame.y + photoFrame.height / 2,
-  );
+  ctx.fillText(label, photoFrame.x + photoFrame.width / 2, photoFrame.y + photoFrame.height / 2);
 }
 
 /* ── back card ───────────────────────────────────────────────────────── */
@@ -444,13 +480,89 @@ export async function renderBack(canvas: HTMLCanvasElement, scale = 1) {
   ctx.drawImage(img, 0, 0, w, h);
 }
 
+/* ── combined pass (front + back side by side) ───────────────────────── */
+
+export async function renderCombined(canvas: HTMLCanvasElement, data: BuilderData, scale = 1) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const gap = 50;
+  const padding = 50;
+  const headerHeight = 70;
+  const footerHeight = 50;
+
+  const cardW = CARD_W;
+  const cardH = CARD_H;
+
+  const totalW = cardW * 2 + gap + padding * 2;
+  const totalH = cardH + padding * 2 + headerHeight + footerHeight;
+
+  canvas.width = Math.round(totalW * scale);
+  canvas.height = Math.round(totalH * scale);
+
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Solid dark background matching app aesthetic
+  ctx.fillStyle = "#160c06";
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Subtle gold border around background
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(12, 12, totalW - 24, totalH - 24);
+
+  // Render front & back on temporary canvases
+  const frontCanvas = document.createElement("canvas");
+  await renderFront(frontCanvas, data, 1);
+
+  const backCanvas = document.createElement("canvas");
+  await renderBack(backCanvas, 1);
+
+  const yPos = padding + headerHeight;
+
+  // Draw Front Card (Left)
+  ctx.drawImage(frontCanvas, padding, yPos, cardW, cardH);
+
+  // Draw Back Card (Right)
+  ctx.drawImage(backCanvas, padding + cardW + gap, yPos, cardW, cardH);
+
+  // Header Banner Text
+  ctx.fillStyle = "#F2E6CE";
+  ctx.font = '700 42px Oswald, "Arial Narrow", sans-serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.letterSpacing = "6px";
+  ctx.fillText(
+    "HACKER HOUSE GOA 2026 • OFFICIAL BUILDER PASS",
+    totalW / 2,
+    padding + headerHeight / 2,
+  );
+
+  // Footer Banner Text / Hashtag
+  ctx.fillStyle = "#d4af37";
+  ctx.font = '600 28px Oswald, "Arial Narrow", sans-serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.letterSpacing = "3px";
+  ctx.fillText(
+    `BUILDER: ${(data.fullName || "BUILDER").toUpperCase()}  |  #FrameInGoa  |  28–31 OCT 2026`,
+    totalW / 2,
+    totalH - padding / 2 - footerHeight / 4,
+  );
+
+  ctx.letterSpacing = "0px";
+}
+
 /* ── file name helper ────────────────────────────────────────────────── */
 
-export function fileName(name: string) {
+export function fileName(name: string, suffix = "") {
   const slug =
     (name || "BUILDER")
       .toUpperCase()
       .replace(/[^A-Z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "BUILDER";
-  return `HH-GOA-2026_${slug}.png`;
+  const part = suffix ? `_${suffix.toUpperCase()}` : "";
+  return `HH-GOA-2026_${slug}${part}.png`;
 }

@@ -1,9 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
-import { Download, Share2, Upload, Terminal, X } from "lucide-react";
+import {
+  Download,
+  Share2,
+  Upload,
+  Terminal,
+  X,
+  Check,
+  Copy,
+  ExternalLink,
+  Layers,
+  Image as ImageIcon,
+} from "lucide-react";
 
 import { CardCanvas } from "@/components/CardCanvas";
-import { fileName, renderFront, type BuilderData } from "@/lib/card-render";
+import {
+  fileName,
+  renderFront,
+  renderBack,
+  renderCombined,
+  type BuilderData,
+} from "@/lib/card-render";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,6 +60,24 @@ const CLASSES = [
   "GROWTH BUILDER",
 ];
 
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas toBlob failed"));
+    }, "image/png");
+  });
+}
+
+function triggerDownload(url: string, name: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 function Field({
   label,
   hint,
@@ -63,12 +105,20 @@ function Index() {
     stack: "REACT • NODE.JS • AI",
     builderId: "#HH-GOA-2026-0001",
     websiteUrl: "https://hhgoa-inky.vercel.app/",
-    // The renderer supplies an opaque, masked placeholder for this state.
-    // Never expose the transparent template before a photo is chosen.
     photo: null,
   });
   const [side, setSide] = useState<"front" | "back">("front");
   const [busy, setBusy] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [copiedImage, setCopiedImage] = useState(false);
+  const [downloadDropdown, setDownloadDropdown] = useState(false);
+  const [previewUrls, setPreviewUrls] = useState<{
+    front?: string;
+    back?: string;
+    combined?: string;
+  }>({});
+  const [activeModalTab, setActiveModalTab] = useState<"combined" | "front" | "back">("combined");
+
   const fileInput = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof BuilderData>(key: K, value: BuilderData[K]) =>
@@ -95,26 +145,162 @@ function Index() {
     reader.readAsDataURL(file);
   };
 
-  const download = async () => {
+  const downloadFront = async () => {
+    const canvas = document.createElement("canvas");
+    await renderFront(canvas, data, 3);
+    const blob = await canvasToBlob(canvas);
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, fileName(data.fullName, "FRONT"));
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+
+  const downloadBack = async () => {
+    const canvas = document.createElement("canvas");
+    await renderBack(canvas, 3);
+    const blob = await canvasToBlob(canvas);
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, fileName(data.fullName, "BACK"));
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+
+  const downloadCombined = async () => {
+    const canvas = document.createElement("canvas");
+    await renderCombined(canvas, data, 2);
+    const blob = await canvasToBlob(canvas);
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, fileName(data.fullName, "PASS"));
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+
+  const downloadAll = async () => {
     setBusy(true);
     try {
-      const canvas = document.createElement("canvas");
-      await renderFront(canvas, data, 3);
-      const url = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName(data.fullName);
-      a.click();
+      await downloadFront();
+      await new Promise((r) => setTimeout(r, 400));
+      await downloadBack();
+      await new Promise((r) => setTimeout(r, 400));
+      await downloadCombined();
+    } finally {
+      setBusy(false);
+      setDownloadDropdown(false);
+    }
+  };
+
+  const share = async () => {
+    setBusy(true);
+    try {
+      // 1. Render Front Card
+      const frontCanvas = document.createElement("canvas");
+      await renderFront(frontCanvas, data, 3);
+      const frontBlob = await canvasToBlob(frontCanvas);
+      const frontUrl = URL.createObjectURL(frontBlob);
+      const frontFile = new File([frontBlob], fileName(data.fullName, "FRONT"), {
+        type: "image/png",
+      });
+
+      // 2. Render Back Card
+      const backCanvas = document.createElement("canvas");
+      await renderBack(backCanvas, 3);
+      const backBlob = await canvasToBlob(backCanvas);
+      const backUrl = URL.createObjectURL(backBlob);
+      const backFile = new File([backBlob], fileName(data.fullName, "BACK"), {
+        type: "image/png",
+      });
+
+      // 3. Render Combined Pass
+      const combinedCanvas = document.createElement("canvas");
+      await renderCombined(combinedCanvas, data, 2);
+      const combinedBlob = await canvasToBlob(combinedCanvas);
+      const combinedUrl = URL.createObjectURL(combinedBlob);
+      const combinedFile = new File([combinedBlob], fileName(data.fullName, "PASS"), {
+        type: "image/png",
+      });
+
+      setPreviewUrls({
+        front: frontUrl,
+        back: backUrl,
+        combined: combinedUrl,
+      });
+
+      // 4. Try Web Share API (native share sheet supporting files)
+      if (typeof navigator !== "undefined" && navigator.canShare) {
+        const shareData = {
+          title: "HH GOA 2026 Builder ID",
+          text: `${shareText}\n${data.websiteUrl}`,
+          files: [frontFile, backFile],
+        };
+
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            setBusy(false);
+            return;
+          } catch (e) {
+            if ((e as Error).name === "AbortError") {
+              setBusy(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // 5. Fallback for Web browsers: Copy combined image to clipboard if supported
+      let copied = false;
+      if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": combinedBlob }),
+          ]);
+          copied = true;
+        } catch (err) {
+          console.warn("Clipboard copy image failed:", err);
+        }
+      }
+      setCopiedImage(copied);
+
+      // Download front and back card images
+      triggerDownload(frontUrl, fileName(data.fullName, "FRONT"));
+      setTimeout(() => {
+        triggerDownload(backUrl, fileName(data.fullName, "BACK"));
+      }, 400);
+
+      // Open X tweet intent page
+      const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        shareText,
+      )}&url=${encodeURIComponent(data.websiteUrl || "https://hhgoa-inky.vercel.app/")}`;
+      window.open(tweetUrl, "_blank", "noopener,noreferrer");
+
+      // Open share dialog modal for user options
+      setShareModalOpen(true);
+    } catch (err) {
+      console.error("Share failed:", err);
     } finally {
       setBusy(false);
     }
   };
 
-  const share = () => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+  const copyImageToClipboard = async () => {
+    if (!previewUrls.combined) return;
+    try {
+      const res = await fetch(previewUrls.combined);
+      const blob = await res.blob();
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        setCopiedImage(true);
+        setTimeout(() => setCopiedImage(false), 3000);
+      }
+    } catch (err) {
+      console.error("Failed to copy image:", err);
+    }
+  };
+
+  const openXIntent = () => {
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
       shareText,
     )}&url=${encodeURIComponent(data.websiteUrl || "https://hhgoa-inky.vercel.app/")}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(tweetUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -397,23 +583,74 @@ function Index() {
               </Field>
             </div>
 
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={download}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-mono text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                <Download className="size-4" aria-hidden />
-                {busy ? "RENDERING…" : "DOWNLOAD PNG"}
-              </button>
+            <div className="mt-7 relative flex flex-wrap gap-3">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDownloadDropdown((v) => !v)}
+                  disabled={busy}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-mono text-xs font-semibold tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  <Download className="size-4" aria-hidden />
+                  {busy ? "RENDERING…" : "DOWNLOAD PASS ▾"}
+                </button>
+
+                {downloadDropdown ? (
+                  <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-md border border-border bg-background p-1.5 shadow-xl font-mono text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdown(false);
+                        downloadFront();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-secondary text-parchment flex items-center justify-between"
+                    >
+                      <span>Front Side Only</span>
+                      <ImageIcon className="size-3.5 text-primary" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdown(false);
+                        downloadBack();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-secondary text-parchment flex items-center justify-between"
+                    >
+                      <span>Back Side Only</span>
+                      <ImageIcon className="size-3.5 text-primary" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdown(false);
+                        downloadCombined();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-secondary text-parchment flex items-center justify-between"
+                    >
+                      <span>Combined Pass</span>
+                      <Layers className="size-3.5 text-primary" />
+                    </button>
+                    <div className="my-1 border-t border-border/60" />
+                    <button
+                      type="button"
+                      onClick={downloadAll}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-primary/20 text-primary font-bold flex items-center justify-between"
+                    >
+                      <span>Download All 3 PNGs</span>
+                      <Download className="size-3.5" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
               <button
                 type="button"
                 onClick={share}
-                className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 font-mono text-xs font-semibold tracking-widest text-parchment transition-colors hover:bg-secondary"
+                disabled={busy}
+                className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 font-mono text-xs font-semibold tracking-widest text-parchment transition-colors hover:bg-secondary disabled:opacity-60"
               >
-                <Share2 className="size-4" aria-hidden />
-                SHARE #FRAMEINGOA
+                <Share2 className="size-4 text-primary" aria-hidden />
+                {busy ? "PREPARING SHARE…" : "SHARE ON X (FRONT & BACK)"}
               </button>
             </div>
           </section>
@@ -451,6 +688,153 @@ function Index() {
           </section>
         </div>
       </div>
+
+      {/* SHARE MODAL DIALOG */}
+      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+        <DialogContent className="max-w-2xl border-[var(--gold-line)] bg-[#120a05] text-parchment font-mono">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold uppercase tracking-wider text-parchment flex items-center gap-2">
+              <Share2 className="size-5 text-primary" />
+              Share Builder ID Pass on X
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Front & Back side card images generated! Attach or paste them in your X post.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 space-y-4">
+            {/* ALERT NOTIFICATION */}
+            <div className="rounded-md border border-primary/40 bg-primary/10 p-3 text-xs text-parchment/90 flex items-start gap-2.5">
+              <Check className="size-4 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-primary">Front & Back Card PNGs Ready!</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  {copiedImage
+                    ? "Combined pass image has been copied to your clipboard (Ctrl+V) and downloaded automatically."
+                    : "Front and Back side card images have been downloaded automatically to your browser."}
+                </p>
+              </div>
+            </div>
+
+            {/* PREVIEW TABS */}
+            <div className="flex gap-2 border-b border-border pb-2">
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("combined")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  activeModalTab === "combined"
+                    ? "bg-primary text-primary-foreground font-bold"
+                    : "bg-secondary/40 text-muted-foreground hover:text-parchment"
+                }`}
+              >
+                Combined Pass
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("front")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  activeModalTab === "front"
+                    ? "bg-primary text-primary-foreground font-bold"
+                    : "bg-secondary/40 text-muted-foreground hover:text-parchment"
+                }`}
+              >
+                Front Side
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("back")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  activeModalTab === "back"
+                    ? "bg-primary text-primary-foreground font-bold"
+                    : "bg-secondary/40 text-muted-foreground hover:text-parchment"
+                }`}
+              >
+                Back Side
+              </button>
+            </div>
+
+            {/* PREVIEW CONTAINER */}
+            <div className="rounded-lg border border-border bg-black/40 p-3 flex justify-center items-center min-h-[220px]">
+              {activeModalTab === "combined" && previewUrls.combined ? (
+                <img
+                  src={previewUrls.combined}
+                  alt="Combined Pass"
+                  className="max-h-[280px] w-auto object-contain rounded shadow"
+                />
+              ) : null}
+              {activeModalTab === "front" && previewUrls.front ? (
+                <img
+                  src={previewUrls.front}
+                  alt="Front Side Card"
+                  className="max-h-[280px] w-auto object-contain rounded shadow"
+                />
+              ) : null}
+              {activeModalTab === "back" && previewUrls.back ? (
+                <img
+                  src={previewUrls.back}
+                  alt="Back Side Card"
+                  className="max-h-[280px] w-auto object-contain rounded shadow"
+                />
+              ) : null}
+            </div>
+
+            {/* QUICK ACTIONS */}
+            <div className="grid gap-2 sm:grid-cols-2 pt-2">
+              <button
+                type="button"
+                onClick={openXIntent}
+                className="flex items-center justify-center gap-2 rounded bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                <ExternalLink className="size-4" />
+                OPEN POST ON X
+              </button>
+
+              <button
+                type="button"
+                onClick={copyImageToClipboard}
+                className="flex items-center justify-center gap-2 rounded border border-border bg-secondary/40 px-4 py-2.5 text-xs font-semibold text-parchment hover:bg-secondary transition-colors"
+              >
+                {copiedImage ? (
+                  <>
+                    <Check className="size-4 text-primary" /> COPIED TO CLIPBOARD
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-4" /> COPY PASS IMAGE
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1 border-t border-border/50 text-[11px] justify-between text-muted-foreground">
+              <span>Downloads:</span>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={downloadFront}
+                  className="hover:text-primary underline"
+                >
+                  Front PNG
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadBack}
+                  className="hover:text-primary underline"
+                >
+                  Back PNG
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadCombined}
+                  className="hover:text-primary underline font-bold"
+                >
+                  Combined Pass PNG
+                </button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <footer className="border-t border-[var(--gold-line)] py-6 text-center font-mono text-[11px] tracking-[0.25em] text-muted-foreground">
         THINK → BUILD → SHIP → REPEAT
