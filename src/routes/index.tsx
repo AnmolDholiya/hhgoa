@@ -63,7 +63,9 @@ function Index() {
     stack: "REACT • NODE.JS • AI",
     builderId: "#HH-GOA-2026-0001",
     websiteUrl: "https://hhgoa-inky.vercel.app/",
-    photo: "/sample-builder.png",
+    // The renderer supplies an opaque, masked placeholder for this state.
+    // Never expose the transparent template before a photo is chosen.
+    photo: null,
   });
   const [side, setSide] = useState<"front" | "back">("front");
   const [busy, setBusy] = useState(false);
@@ -161,7 +163,15 @@ function Index() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => set("photo", "/sample-builder.png")}
+                    onClick={() =>
+                      setData((d) => ({
+                        ...d,
+                        photo: "/sample-builder.png",
+                        photoZoom: 1,
+                        photoOffsetX: 0,
+                        photoOffsetY: 0,
+                      }))
+                    }
                     className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/30 px-3 py-2 font-mono text-xs tracking-widest text-parchment transition-colors hover:bg-secondary"
                   >
                     SAMPLE
@@ -169,7 +179,15 @@ function Index() {
                   {data.photo ? (
                     <button
                       type="button"
-                      onClick={() => set("photo", null)}
+                      onClick={() =>
+                        setData((d) => ({
+                          ...d,
+                          photo: null,
+                          photoZoom: 1,
+                          photoOffsetX: 0,
+                          photoOffsetY: 0,
+                        }))
+                      }
                       className="inline-flex items-center gap-1 font-mono text-xs tracking-widest text-muted-foreground hover:text-destructive"
                     >
                       <X className="size-3.5" aria-hidden /> REMOVE
