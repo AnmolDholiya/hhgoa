@@ -330,29 +330,7 @@ export function Index() {
         combined: combinedUrl,
       });
 
-      // If mobile browser supports Web Share with image files, share directly with attached Front & Back PNGs!
-      if (typeof navigator !== "undefined" && navigator.canShare) {
-        const shareData = {
-          title: "HH GOA 2026 Builder ID",
-          text: shareText,
-          files: [frontFile, backFile],
-        };
-
-        if (navigator.canShare(shareData)) {
-          try {
-            await navigator.share(shareData);
-            setBusy(false);
-            return;
-          } catch (e) {
-            if ((e as Error).name === "AbortError") {
-              setBusy(false);
-              return;
-            }
-          }
-        }
-      }
-
-      // Desktop / Web Intent fallback: Copy image, download both PNGs, open X intent & share modal
+      // Copy combined image to clipboard if supported
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard && window.ClipboardItem) {
         try {
